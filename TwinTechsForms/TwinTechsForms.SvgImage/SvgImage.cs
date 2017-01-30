@@ -166,6 +166,9 @@ namespace TwinTechs
 				SetValue (SvgStretchableInsetsProperty, value);
 			}
 		}
+		 
+		public IImage BitmapImage { get; set; }
+		public IImageCanvas Canvas { get; set; }
 
 		public void Invalidate ()
 		{

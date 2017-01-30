@@ -44,6 +44,9 @@ namespace TwinTechs.Droid
 				var finalCanvas = _formsControl.RenderSvgToCanvas (outputSize, ScreenScale, CreatePlatformImageCanvas);
 				var image = (BitmapImage)finalCanvas.GetImage ();
 
+
+				_formsControl.BitmapImage = image;
+				_formsControl.Canvas = finalCanvas;
 				Control.SetImageBitmap (image.Bitmap);
 			}
 		}
