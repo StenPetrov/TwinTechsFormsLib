@@ -14,8 +14,14 @@ We will contribute some of these controls to the xamarin forms project once we d
 ##Caveat emptor (buyer beware)
 This library is in an alpha stage. Do not use in a production environment unless you know what you are doing, know what these controls are doing, and have budget to investigate and contribute to resolving any issues which may arise.
 
-#Controls
+# This Fork
+This fork relies on a fork of NGraphics that fixes some brush inheritence issues and adds features required in SvgReader and a few other classes.
+Features:
+* SVG images to be passed in as a XDocument along with a predicate function to determine which elements will be rendered. This allows for a single SVG to be read once and reinterpreted as different images - layers for example.
+* GetPixelColor on the SvgImageView allows for opacity-aware hit-test
 
+
+#Controls
 ## FastCell
 
 ### Overview
