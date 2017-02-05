@@ -12,51 +12,60 @@ using System.Runtime.InteropServices;
 using System.Drawing;
 
 [assembly: ExportRenderer(typeof(SvgImageView), typeof(SvgImageViewRenderer))]
-namespace TwinTechsForms.NControl.iOS {
-    [Preserve(AllMembers = true)]
-    public class SvgImageViewRenderer : ImageRenderer {
-        /// <summary>
-        ///   Used for registration with dependency service
-        /// </summary>
-        public new static void Init() {
-            var temp = DateTime.Now;
-        }
+namespace TwinTechsForms.NControl.iOS
+{
+	[Preserve(AllMembers = true)]
+	public class SvgImageViewRenderer : ImageRenderer
+	{
+		/// <summary>
+		///   Used for registration with dependency service
+		/// </summary>
+		public new static void Init()
+		{
+			var temp = DateTime.Now;
+			SvgImageView.CreatePlatformImageCanvas = (size, scale) => new ApplePlatform().CreateImageCanvas(size, scale);
+		}
 
-        SvgImageView FormsControl {
-            get {
-                return Element as SvgImageView;
-            }
-        }
+		SvgImageView FormsControl
+		{
+			get
+			{
+				return Element as SvgImageView;
+			}
+		}
 
-        static Func<Size, double, IImageCanvas> CreatePlatformImageCanvas = (size, scale) => new ApplePlatform().CreateImageCanvas(size, scale);
+		public override void Draw(CGRect rect)
+		{
+			base.Draw(rect);
 
-        public override void Draw(CGRect rect) {
-            base.Draw(rect);
+			if (FormsControl != null)
+			{
+				Console.WriteLine($"Drawing {FormsControl.StyleId} at {rect.X:0.00}:{rect.Y:0.00}, {rect.Width:0.00}x{rect.Height:0.00}");
+				using (CGContext context = UIGraphics.GetCurrentContext())
+				{
+					context.SetAllowsAntialiasing(true);
+					context.SetShouldAntialias(true);
+					context.SetShouldSmoothFonts(true);
 
-            if (FormsControl != null) {
-                using (CGContext context = UIGraphics.GetCurrentContext()) {
-                    context.SetAllowsAntialiasing(true);
-                    context.SetShouldAntialias(true);
-                    context.SetShouldSmoothFonts(true);
+					var finalCanvas = FormsControl.RenderSvgToCanvas(new Size(rect.Width, rect.Height), UIScreen.MainScreen.Scale);
+					var image = finalCanvas.GetImage();
+					var uiImage = image.GetUIImage();
 
-                    var finalCanvas = FormsControl.RenderSvgToCanvas(new Size(rect.Width, rect.Height), UIScreen.MainScreen.Scale, CreatePlatformImageCanvas);
-                    var image = finalCanvas.GetImage();
-                    var uiImage = image.GetUIImage();
-					 
 					FormsControl.BitmapImage = image;
 					FormsControl.Canvas = finalCanvas;
+					Control.Image = uiImage;
+					FormsControl.LayoutComplete?.Invoke(FormsControl, finalCanvas);
+				}
+			}
+		}
 
-                    Control.Image = uiImage;
-                }
-            }
-        }
+		protected override void OnElementChanged(ElementChangedEventArgs<Image> e)
+		{
+			base.OnElementChanged(e);
 
-        protected override void OnElementChanged(ElementChangedEventArgs<Image> e) {
-            base.OnElementChanged(e);
-
-           	if (e.OldElement != null)
+			if (e.OldElement != null)
 			{
-				(e.OldElement as SvgImageView).OnInvalidate -= HandleInvalidate; 
+				(e.OldElement as SvgImageView).OnInvalidate -= HandleInvalidate;
 				(e.OldElement as SvgImageView).GetColorHandler -= GetColorHandler;
 			}
 
@@ -66,8 +75,8 @@ namespace TwinTechsForms.NControl.iOS {
 				(e.NewElement as SvgImageView).GetColorHandler += GetColorHandler;
 			}
 
-            SetNeedsDisplay();
-        }
+			SetNeedsDisplay();
+		}
 
 		Xamarin.Forms.Color GetColorHandler(SvgImageView svgImageView, double x, double y)
 		{
@@ -76,13 +85,16 @@ namespace TwinTechsForms.NControl.iOS {
 				Console.WriteLine("Cross-linked renderer and view");
 			}
 
-			var bitmapImage = FormsControl.BitmapImage as CGImage;
+			var bitmapImageImg = FormsControl.BitmapImage as CGImageImage;
+			var bitmapImage = bitmapImageImg?.Image;
 			if (bitmapImage != null)
 			{
 				if (x >= 0 && x < bitmapImage.Width &&
 					y >= 0 && y < bitmapImage.Height)
 				{
-					return GetPixelColor(bitmapImage, (float)x, (float)y);
+					return GetPixelColor(bitmapImage,
+										 (float)(x * bitmapImage.Width / FormsControl.Width),
+										 (float)(y * bitmapImage.Height / FormsControl.Height));
 				}
 			}
 			return Xamarin.Forms.Color.Transparent;
@@ -91,7 +103,7 @@ namespace TwinTechsForms.NControl.iOS {
 		private Xamarin.Forms.Color GetPixelColor(CGImage myImage, float x, float y)
 		{
 			var rawData = new byte[4];
-			var handle = GCHandle.Alloc(rawData); 
+			var handle = GCHandle.Alloc(rawData);
 			try
 			{
 				using (var colorSpace = CGColorSpace.CreateDeviceRGB())
@@ -99,7 +111,7 @@ namespace TwinTechsForms.NControl.iOS {
 					using (var context = new CGBitmapContext(rawData, 1, 1, 8, 4, colorSpace, CGImageAlphaInfo.PremultipliedLast))
 					{
 						context.DrawImage(new RectangleF(-x, y - myImage.Height, myImage.Width, myImage.Height), myImage);
-					 
+
 						return Xamarin.Forms.Color.FromRgba(rawData[0], rawData[1], rawData[2], rawData[3]);
 					}
 				}
@@ -107,14 +119,15 @@ namespace TwinTechsForms.NControl.iOS {
 			finally
 			{
 				handle.Free();
-			} 
+			}
 		}
 
-        /// <summary>
-        /// Handles view invalidate.
-        /// </summary>
-        void HandleInvalidate(object sender, EventArgs args) {
-            SetNeedsDisplay();
-        }
-    }
+		/// <summary>
+		/// Handles view invalidate.
+		/// </summary>
+		void HandleInvalidate(object sender, EventArgs args)
+		{
+			SetNeedsDisplay();
+		}
+	}
 }

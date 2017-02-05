@@ -16,6 +16,8 @@ namespace TwinTechsForms.NControl
 	{
 		public event EventHandler OnInvalidate;
 		public event Func<SvgImageView, double, double, Xamarin.Forms.Color> GetColorHandler;
+		public static Func<Size, double, IImageCanvas> CreatePlatformImageCanvas;
+		public Action<SvgImageView, IImageCanvas> LayoutComplete;
 
 		/// <summary>
 		/// The path to the svg file
@@ -65,6 +67,8 @@ namespace TwinTechsForms.NControl
 			}
 		}
 
+		public Rect? ViewBox { get; set; }
+
 		public IImage BitmapImage { get; set; }
 		public IImageCanvas Canvas { get; set; }
 
@@ -76,6 +80,7 @@ namespace TwinTechsForms.NControl
 			}
 			return Xamarin.Forms.Color.Transparent;
 		}
+
 		public void Invalidate()
 		{
 			OnInvalidate?.Invoke(this, EventArgs.Empty);
@@ -85,7 +90,7 @@ namespace TwinTechsForms.NControl
 		{
 			base.OnBindingContextChanged();
 
-			LoadSvgFromResource(); 
+			LoadSvgFromResource();
 			Invalidate();
 		}
 
@@ -106,7 +111,7 @@ namespace TwinTechsForms.NControl
 			}
 		}
 
-		Graphic LoadedGraphic { get; set; }
+		protected Graphic LoadedGraphic { get; set; }
 
 		public void LoadSvgFromResource()
 		{
@@ -130,31 +135,15 @@ namespace TwinTechsForms.NControl
 			LoadedGraphic = r.Graphic;
 		}
 
-		public void LoadSvgFromString(string svgXmlString)
+		public virtual IImageCanvas AddFilterCanvas(IImageCanvas imageCanvas)
 		{
-			if (svgXmlString == null)
-				throw new ArgumentNullException(nameof(svgXmlString));
-
-			using (Stream srd = new MemoryStream(Encoding.UTF8.GetBytes(svgXmlString)))
-			{
-				var r = new SvgReader(new StreamReader(srd));
-				LoadedGraphic = r.Graphic;
-			}
+			return imageCanvas;
 		}
 
-		public void LoadSvgFromXDocument(XDocument svgXDocument, Func<XElement, bool> parseFilter = null)
+		public virtual IImageCanvas RenderSvgToCanvas(Size outputSize, double finalScale)
 		{
-			if (svgXDocument == null)
-				throw new ArgumentNullException(nameof(svgXDocument));
-
-			var r = new SvgReader(svgXDocument, parseFilter);
-			LoadedGraphic = r.Graphic;
-		}
-
-		public IImageCanvas RenderSvgToCanvas(Size outputSize, double finalScale, Func<Size, double, IImageCanvas> createPlatformImageCanvas)
-		{
-			var originalSvgSize = LoadedGraphic.Size;
-			var finalCanvas = createPlatformImageCanvas(outputSize, finalScale);
+			var originalSvgSize = ViewBox?.Size ?? LoadedGraphic.Size;
+			var finalCanvas = AddFilterCanvas(CreatePlatformImageCanvas(outputSize, finalScale));
 
 			if (SvgStretchableInsets != ResizableSvgInsets.Zero)
 			{
@@ -180,24 +169,26 @@ namespace TwinTechsForms.NControl
 
 				foreach (var sliceFramePair in sliceFramePairs)
 				{
-					var sliceImage = RenderSectionToImage(LoadedGraphic, sliceFramePair.Item1, sliceFramePair.Item2, finalScale, createPlatformImageCanvas);
+					var sliceImage = RenderSectionToImage(LoadedGraphic, sliceFramePair.Item1, sliceFramePair.Item2, finalScale);
 					finalCanvas.DrawImage(sliceImage, sliceFramePair.Item2);
 				}
 			}
-			else {
+			else
+			{
 				// Typical approach to rendering an SVG; just draw it to the canvas.
 				double proportionalOutputScale = originalSvgSize.ScaleThatFits(outputSize);
 				// Make sure ViewBox is reset to a proportionally-scaled default in case it was previous set by slicing.
-				LoadedGraphic.ViewBox = new Rect(Point.Zero, originalSvgSize / proportionalOutputScale);
+				LoadedGraphic.ViewBox = new Rect(ViewBox?.TopLeft ?? Point.Zero, originalSvgSize / proportionalOutputScale);
 				LoadedGraphic.Draw(finalCanvas);
 			}
+
 			return finalCanvas;
 		}
 
-		static IImage RenderSectionToImage(/*this*/ Graphic graphics, Rect sourceFrame, Rect outputFrame, double finalScale, Func<Size, double, IImageCanvas> createPlatformImageCanvas)
+		static IImage RenderSectionToImage(/*this*/ Graphic graphics, Rect sourceFrame, Rect outputFrame, double finalScale)
 		{
 			var originalSize = graphics.Size;
-			var sectionCanvas = createPlatformImageCanvas(outputFrame.Size, finalScale);
+			var sectionCanvas = CreatePlatformImageCanvas(outputFrame.Size, finalScale);
 
 			// Redraw into final version with any scaling between the original and the output slice.
 			var sliceVerticalScale = outputFrame.Height / sourceFrame.Height;

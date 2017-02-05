@@ -21,6 +21,7 @@ namespace TwinTechsForms.NControl.Android
 		public static void Init()
 		{
 			var temp = DateTime.Now;
+			SvgImageView.CreatePlatformImageCanvas = (size, scale) => new AndroidPlatform().CreateImageCanvas(size, scale);
 		}
 
 		public SvgImageViewRenderer()
@@ -36,9 +37,7 @@ namespace TwinTechsForms.NControl.Android
 				return Element as SvgImageView;
 			}
 		}
-
-		static Func<Size, double, IImageCanvas> CreatePlatformImageCanvas = (size, scale) => new AndroidPlatform().CreateImageCanvas(size, scale);
-
+		 
 		public override void Draw(Canvas canvas)
 		{
 			base.Draw(canvas);
@@ -47,12 +46,14 @@ namespace TwinTechsForms.NControl.Android
 			{
 				const double screenScale = 1.0; // Don't need to deal with screen scaling on Android.
 
-				var finalCanvas = FormsControl.RenderSvgToCanvas(new Size(canvas.Width, canvas.Height), screenScale, CreatePlatformImageCanvas);
+				var finalCanvas = FormsControl.RenderSvgToCanvas(new Size(canvas.Width, canvas.Height), screenScale);
 				var image = (BitmapImage)finalCanvas.GetImage();
 
 				FormsControl.BitmapImage = image;
 				FormsControl.Canvas = finalCanvas;
 				Control.SetImageBitmap(image.Bitmap);
+ 
+				FormsControl.LayoutComplete?.Invoke(FormsControl, finalCanvas);
 			}
 		}
 
