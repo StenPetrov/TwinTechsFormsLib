@@ -10,6 +10,7 @@ using TwinTechsForms.NControl.iOS;
 using Size = NGraphics.Size;
 using System.Runtime.InteropServices;
 using System.Drawing;
+using System.Diagnostics;
 
 [assembly: ExportRenderer(typeof(SvgImageView), typeof(SvgImageViewRenderer))]
 namespace TwinTechsForms.NControl.iOS
@@ -40,7 +41,7 @@ namespace TwinTechsForms.NControl.iOS
 
 			if (FormsControl != null)
 			{
-				Console.WriteLine($"Drawing {FormsControl.StyleId} at {rect.X:0.00}:{rect.Y:0.00}, {rect.Width:0.00}x{rect.Height:0.00}");
+				Debug.WriteLine($"[AKQJFNTWSAN] Drawing {FormsControl.StyleId} at {rect.X:0.00}:{rect.Y:0.00}, {rect.Width:0.00}x{rect.Height:0.00}");
 				using (CGContext context = UIGraphics.GetCurrentContext())
 				{
 					context.SetAllowsAntialiasing(true);
